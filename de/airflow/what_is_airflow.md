@@ -79,9 +79,12 @@ dag = DAG(
 )
 ```
 
-- depends on past (backfill)
-    - 과거에 실패했던 작업을 재실행해야하는지에 대한 옵션
+- depends on past
+    - 이전 일자에 실행했던 작업이 실패할 경우 작업을 종료해야하는지 결정하는 옵션
     - 특정 일시에 데이터가 없으면 안되는 상황이라면, True로 주어야 함.
+- catchup (backfill)
+    - 과거에 실패했던 작업을 재실행해야하는지에 대한 옵션
+    - Start date를 2022.01.01로 설정하고 현재 시점에서 catchup=False를 두면 실행 시점을 기준으로만 데이터를 수집함.
 - retries
     - Failover 몇번까지 수행할 지 (Default가 5번)
     - Lambda도 2번은 수행하는 것으로 알고 있음.
@@ -140,6 +143,7 @@ dag = DAG(
     - MetaStore에 선택 가능한 개체(Pickable)를 저장.
     - Pickle형태라 Write는 느린데, Read가 빠름
     - 작은 데이터셋을 주고 받을 때 많이 활용함
+    - Metadata.db에 저장되는데, 작업이 끝난 후에 자동으로 삭제되는 것이 아니기 때문에 주기적으로 지워주는 작업을 수행해야 함.
 - DISK에 영구 저장
     - PostgreSQL나 MySQL 등 외부 DB에 결과 저장
     - 훨씬 안전하고 대용량의 데이터셋도 저장하여 관리할 수 있음.
