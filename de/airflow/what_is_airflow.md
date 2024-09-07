@@ -145,5 +145,47 @@ dag = DAG(
     - 작은 데이터셋을 주고 받을 때 많이 활용함
     - Metadata.db에 저장되는데, 작업이 끝난 후에 자동으로 삭제되는 것이 아니기 때문에 주기적으로 지워주는 작업을 수행해야 함.
 - DISK에 영구 저장
-    - PostgreSQL나 MySQL 등 외부 DB에 결과 저장
+    - AWS S3, GCS 등 외부 영구 저장소에 결과 저장
     - 훨씬 안전하고 대용량의 데이터셋도 저장하여 관리할 수 있음.
+
+### Executor 비교
+    - Sequential Executor
+        - Airflow의 Default Executor이며, 순차적인 처리만 가능 (병렬 x)
+        - 테스트 디버깅에 적합하며, DB로 SQLite 활용 
+    - Local Executor
+        - Local 환경에서 순차처리 + 병렬처리가 가능함
+        - 가볍고 싸며, 쉽게 환경 구축이 가능함.
+        - DB로는 PostgreSQL을 권장
+    - Celery Executor   
+        - RabbitMQ나 Redis와 같은 MQ 역할을 하는 Broker가 필요함
+        - worker를 늘리면 병렬처리를 보다 수월하게 가능 (수평적 확장 가능)
+        - 비용 효율적이지는 않은 구조임.
+    - Kubenetes Executor 
+        - Kubernetes API를 통해 각 태스크가 별도의 Kubernetes Pod로 실행됨.
+        - Worker 관리를 자동화하고, 필요한 리소스 할당이 유연함 (클라우드 환경에 적합)
+        - Celery보다 러닝커브가 높음
+
+### Celery Executor로 Airflow 구축할 때
+    - 요구 사항
+        - 브로커: Redis/RabbitMQ와 같은 Broker가 필요함. (작업을 Queue로 보내는 작업 수행)
+        - 데이터베이스: MySQL / PostgreSQL 등 관계형 DB를 필요로 함. (결과 저장)
+        - 워커 노드: 여러 대의 Worker를 활용하여 병렬처리 가능.
+        - 위와 같은 여러가지 환경을 필요로 하기에, 실질적으로 Container가 5개 이상 실행됨.
+
+    - 구성 요소
+        - 스케쥴러: DAG 분석 / Metadata.db에 Serialize 결과 저장 / 실행 Task를 MQ에 전달
+        - 웹 서버: Task 상태 모니터링 가능
+        - 브로커: DAG Task 작업 대기열 관리. 시간되면 Worker가 MQ에서 Task를 꺼내 수행
+        - 데이터베이스: 작업 결과 및 상태 저장
+    
+    - 장점
+        - 워커 노드만 추가가 간편해서 수평적 확장성에 용이함.
+        - 대규모 DAG에서 병렬처리를 통해 작업 시간 단축 가능
+        - 분산처리 가능 => 리소스 활용 극대화
+
+    - 단점
+        - 브로커와 워커 노드 간 통신이 필요하기 때문에, Overhead 발생 가능
+        - 여러 Container가 켜져야해서 운영 비용이 증가할 수 있음.
+    
+    - 추가 사항
+        - Celery 워커 노드의 상태 및 큐 상태를 모니터링하는 도구를 사용하는 것이 좋음.
